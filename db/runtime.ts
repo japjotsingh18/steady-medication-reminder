@@ -54,7 +54,6 @@ export async function ensureDemoData() {
 }
 
 export async function getMedications(): Promise<MedicationRecord[]> {
-  await ensureDemoData();
   const result = await env.DB.prepare("SELECT * FROM medications ORDER BY id").all<Record<string, unknown>>();
   return result.results.map((row) => ({
     id: Number(row.id),
@@ -69,7 +68,6 @@ export async function getMedications(): Promise<MedicationRecord[]> {
 }
 
 export async function getDoses(): Promise<DoseRecord[]> {
-  await ensureDemoData();
   const result = await env.DB.prepare(`SELECT d.*, m.name AS medication_name, m.dosage FROM dose_logs d JOIN medications m ON m.id = d.medication_id ORDER BY d.scheduled_date DESC, d.scheduled_time ASC`).all<Record<string, unknown>>();
   return result.results.map((row) => ({
     id: Number(row.id), medicationId: Number(row.medication_id), medicationName: String(row.medication_name), dosage: String(row.dosage),

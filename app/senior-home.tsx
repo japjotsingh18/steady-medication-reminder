@@ -1,12 +1,33 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Camera, Check, ChevronRight, Clock3, HeartHandshake, RotateCcw, Volume2, X } from "lucide-react";
 import { useDashboard } from "./hooks";
 import { Dose } from "./types";
+import { saveLocalPhoto } from "./local-photos";
 
 type Step = "home" | "review" | "success";
+
+function greetingForHour(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function timingLabel(dose: Dose, now: Date | null) {
+  if (!now) return "Scheduled";
+  const match = dose.scheduledTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return "Scheduled";
+  const [year, month, day] = dose.scheduledDate.split("-").map(Number);
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hour += 12;
+  const scheduled = new Date(year, month - 1, day, hour, Number(match[2]));
+  const minutesUntil = (scheduled.getTime() - now.getTime()) / 60_000;
+  if (minutesUntil > 30) return "Next dose";
+  if (minutesUntil < -30) return "Overdue";
+  return "Due now";
+}
 
 export function SeniorHome() {
   const { data, setData, loading } = useDashboard();
@@ -14,11 +35,21 @@ export function SeniorHome() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [now, setNow] = useState<Date | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const today = new Date().toISOString().slice(0, 10);
   const todayDoses = data.doses.filter((dose) => dose.scheduledDate === today).slice(0, 3);
   const nextDose = todayDoses.find((dose) => dose.status === "pending") ?? todayDoses[todayDoses.length - 1];
   const nextMedication = data.medications.find((medication) => medication.id === nextDose?.medicationId);
+
+  useEffect(() => {
+    const initialTimer = window.setTimeout(() => setNow(new Date()), 250);
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(timer);
+    };
+  }, []);
 
   function speakReminder() {
     if (!nextDose || !("speechSynthesis" in window)) return;
@@ -45,9 +76,9 @@ export function SeniorHome() {
     setSaving(true);
     const form = new FormData();
     form.append("doseId", String(nextDose.id));
-    if (selectedPhoto) form.append("photo", selectedPhoto);
+    if (selectedPhoto) await saveLocalPhoto(nextDose.id, selectedPhoto).catch(() => undefined);
     try { await fetch("/api/doses/confirm", { method: "POST", body: form }); } catch { /* demo remains usable offline */ }
-    setData((current) => ({ ...current, doses: current.doses.map((dose) => dose.id === nextDose.id ? { ...dose, status: "taken", confirmedAt: new Date().toISOString() } : dose) }));
+    setData((current) => ({ ...current, doses: current.doses.map((dose) => dose.id === nextDose.id ? { ...dose, status: "taken", confirmedAt: new Date().toISOString(), photoKey: selectedPhoto ? `local:${dose.id}` : dose.photoKey } : dose) }));
     setSaving(false);
     setStep("success");
   }
@@ -86,16 +117,16 @@ export function SeniorHome() {
   }
 
   return (
-    <main className="senior-shell">
+    <main className="senior-shell senior-home-shell">
       <header className="senior-header">
         <Link href="/" className="brand" aria-label="Steady home"><span className="brand-mark">S</span><span>Steady</span></Link>
         <Link href="/caregiver" className="caregiver-link"><HeartHandshake aria-hidden="true" />Caregiver view</Link>
       </header>
 
-      <section className="greeting"><p>Good afternoon, {data.senior.name}</p><h1>{loading ? "Getting today ready…" : nextDose?.status === "pending" ? "It’s time for your medicine." : "You’re all caught up."}</h1></section>
+      <section className="greeting"><p>{now ? greetingForHour(now.getHours()) : "Hello"}, {data.senior.name}</p><h1>{loading ? "Getting today ready…" : nextDose?.status === "pending" ? timingLabel(nextDose, now) === "Next dose" ? "Here’s what comes next." : "It’s time for your medicine." : "You’re all caught up."}</h1></section>
 
       {nextDose && <section className="next-card" aria-labelledby="next-medication">
-        <div className="next-time"><span className="pulse-dot" aria-hidden="true" />Due now · {nextDose.scheduledTime}</div>
+        <div className={`next-time timing-${timingLabel(nextDose, now).toLowerCase().replace(" ", "-")}`}><span className="pulse-dot" aria-hidden="true" />{timingLabel(nextDose, now)} · {nextDose.scheduledTime}</div>
         <div className={`pill-illustration ${nextMedication?.color ?? "sage"}`} aria-hidden="true"><span /></div>
         <h2 id="next-medication">{nextDose.medicationName}</h2>
         <p className="dosage">{nextDose.dosage}</p>
@@ -103,7 +134,7 @@ export function SeniorHome() {
         <button className="listen-button" onClick={speakReminder}><Volume2 aria-hidden="true" />Read this aloud</button>
         <button className="primary-button took-button" onClick={beginConfirmation} disabled={nextDose.status === "taken"}><Check aria-hidden="true" />{nextDose.status === "taken" ? "Taken" : "I took it"}</button>
         <input ref={fileRef} className="visually-hidden" type="file" accept="image/*" capture="environment" aria-label="Take a medication confirmation photo" onChange={(event) => onPhotoSelected(event.target.files?.[0])} />
-        {nextMedication?.requiresPhoto && nextDose.status !== "taken" && <p className="camera-note"><Camera aria-hidden="true" />You’ll take a quick photo next</p>}
+        {nextMedication?.requiresPhoto && nextDose.status !== "taken" && <p className="camera-note"><Camera aria-hidden="true" />You’ll take a quick photo next · kept on this device</p>}
       </section>}
 
       <section className="today-section" aria-labelledby="today-title">

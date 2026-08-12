@@ -41,6 +41,18 @@ a { color:inherit; text-decoration:none; }
 .senior-footer { margin:26px 2px 0; padding:18px; border-radius:18px; background:#f5f0e4; display:flex; align-items:center; gap:13px; color:var(--ink-soft); }.senior-footer svg{flex:0 0 auto}.senior-footer p{margin:0;font-size:15px;line-height:1.45}
 .capture-step { display:flex; flex-direction:column; padding-bottom:28px; }.step-header{height:82px;display:flex;align-items:center;justify-content:space-between;font-weight:800;border-bottom:1px solid var(--line)}.header-spacer{width:48px}.capture-content{padding:34px 0 24px;text-align:center;flex:1}.capture-content .eyebrow{display:flex;align-items:center;justify-content:center;gap:8px}.capture-content h1,.success-step h1{font-family:Georgia,serif;font-size:38px;line-height:1.08;margin:8px 0 22px}.capture-content>p{color:var(--ink-soft);line-height:1.5}.photo-preview{width:100%;height:min(54vh,430px);object-fit:cover;border-radius:24px;border:4px solid white;box-shadow:var(--shadow)}.capture-actions{display:flex;flex-direction:column;gap:12px}.success-step{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-bottom:50px}.success-mark{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:var(--sage-light);color:var(--sage-dark);margin-bottom:24px}.success-mark svg{width:62px;height:62px;stroke-width:3}.success-step>p:not(.eyebrow){color:var(--ink-soft);font-size:20px;margin:0 0 36px}.success-step .primary-button{max-width:360px}
 
+@media (min-width:900px){
+  .senior-home-shell{width:min(calc(100% - 48px),1180px);display:grid;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);grid-template-areas:"header header" "greeting today" "card today" "footer today";column-gap:42px;align-content:start;padding:0 48px 48px;box-shadow:0 0 90px rgba(46,57,51,.09)}
+  .senior-home-shell .senior-header{grid-area:header;min-height:96px}
+  .senior-home-shell .greeting{grid-area:greeting;padding:48px 2px 24px}
+  .senior-home-shell .greeting h1{font-size:clamp(42px,4.2vw,56px);max-width:650px}
+  .senior-home-shell .next-card{grid-area:card;padding:28px 30px 26px}
+  .senior-home-shell .next-card h2{font-size:40px}
+  .senior-home-shell .today-section{grid-area:today;padding:48px 0 0}
+  .senior-home-shell .senior-footer{grid-area:footer;align-self:start;margin-top:28px}
+  .senior-home-shell .schedule-row{min-height:92px}
+}
+
 /* Caregiver experience */
 .caregiver-shell { min-height:100vh; background:#f4f5f1; display:grid; grid-template-columns:250px 1fr; color:#18372f; }
 .sidebar { position:sticky; top:0; height:100vh; padding:26px 18px 18px; background:#173a31; color:#dce9e3; display:flex; flex-direction:column; z-index:20; }.sidebar-top{display:flex;align-items:center;justify-content:space-between;padding:0 8px 27px}.nav-close{display:none}.senior-chip{display:grid;grid-template-columns:44px 1fr 18px;align-items:center;gap:10px;padding:12px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.08);border-radius:14px;margin-bottom:20px}.senior-chip>span,.caregiver-profile>span{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:#f1c76c;color:#173a31;font-size:13px;font-weight:850}.senior-chip div,.caregiver-profile div{display:flex;flex-direction:column;min-width:0}.senior-chip small,.caregiver-profile small{font-size:11px;color:#a9c0b7}.senior-chip strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.senior-chip svg{width:16px}.sidebar nav{display:flex;flex-direction:column;gap:5px}.sidebar nav button,.sidebar-links button{min-height:48px;border:0;border-radius:12px;background:transparent;color:#bfd0ca;display:flex;align-items:center;gap:12px;padding:0 14px;font-weight:700;cursor:pointer}.sidebar nav button svg,.sidebar-links svg{width:20px}.sidebar nav button.active{background:#f3f0e5;color:#173a31}.sidebar-links{margin-top:auto;display:flex;flex-direction:column}.caregiver-profile{display:grid;grid-template-columns:42px 1fr 18px;align-items:center;gap:10px;margin-top:17px;padding:16px 5px 4px;border-top:1px solid rgba(255,255,255,.12)}.caregiver-profile>span{background:#d6e5de}.caregiver-profile strong{font-size:13px}.caregiver-profile svg{width:18px}
@@ -56,3 +68,20 @@ a { color:inherit; text-decoration:none; }
 @media (max-width:480px){.senior-shell{padding-left:18px;padding-right:18px}.senior-header{min-height:78px}.brand{font-size:23px}.brand-mark{width:38px;height:38px}.caregiver-link{font-size:0}.caregiver-link svg{width:24px}.greeting{padding-top:24px}.next-card{border-radius:24px;padding:20px 18px}.next-card h2{font-size:32px}.summary-grid{grid-template-columns:1fr}.summary-grid article{min-height:95px}.dashboard-header>div:first-of-type p:not(.eyebrow){display:none}.dashboard-header .eyebrow{display:block}.invite-code{flex-direction:column}.invite-dialog{padding:34px 24px}.section-heading>span{display:none}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}}
 @media (forced-colors:active){.status-icon,.history-status,.summary-icon{border:2px solid currentColor}.primary-button,.primary-compact{border:2px solid ButtonText}}
+
+/* Caregiver interaction additions */
+.senior-chip{transition:background .18s ease}
+.senior-chip:hover,.senior-chip:focus-visible{background:rgba(255,255,255,.16);outline:2px solid #f1c76c;outline-offset:2px}
+.senior-chip svg{width:18px}
+.sidebar-links a{min-height:48px;border:0;border-radius:12px;background:transparent;color:#bfd0ca;display:flex;align-items:center;gap:12px;padding:0 14px;font-weight:700}
+.sidebar-links .view-senior-link{margin-bottom:8px;background:rgba(241,199,108,.13);color:#f6d992;border:1px solid rgba(241,199,108,.18)}
+.sidebar-links button:hover,.sidebar-links a:hover{background:rgba(255,255,255,.08);color:#fff}
+.view-as-senior{background:#eef4f0;border-color:#cddfd6;color:var(--sage-dark)}
+.utility-sheet{width:min(100%,520px)}
+.privacy-note{display:flex;gap:12px;padding:16px;border:1px solid #d4e3db;border-radius:14px;background:#f1f6f3;color:var(--sage-dark)}
+.privacy-note>svg{flex:0 0 auto;width:23px}.privacy-note p{margin:4px 0 0;color:#60716a;font-size:12px;line-height:1.45}
+.help-list{display:flex;flex-direction:column;gap:10px}.help-list details{border:1px solid #dfe4de;border-radius:14px;padding:0 16px;background:#fff}
+.help-list summary{min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-weight:800;font-size:14px;cursor:pointer;list-style:none}.help-list summary::-webkit-details-marker{display:none}.help-list summary svg{width:18px;transition:transform .18s}.help-list details[open] summary svg{transform:rotate(180deg)}.help-list details p{margin:0;padding:0 0 16px;color:#60716a;font-size:13px;line-height:1.55}
+.support-card{margin-top:20px;min-height:70px;border-radius:15px;background:#eef4f0;display:flex;align-items:center;gap:14px;padding:14px 17px;color:var(--sage-dark)}.support-card>svg{width:24px}.support-card div{display:flex;flex-direction:column;gap:3px}.support-card span{font-size:12px;color:#61716b}.demo-note{color:#7c8984;font-size:11px;margin:8px 2px}
+.notification-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}.notification-list article{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;padding:15px;border:1px solid #dfe4de;border-radius:14px}.notification-list article>span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#deece5;color:#276650}.notification-list article.attention>span{background:#f8e2de;color:#aa4636}.notification-list svg{width:18px}.notification-list p{margin:4px 0 0;color:#73817c;font-size:12px}.full-width{width:100%}
+@media (max-width:1200px){.header-actions .view-as-senior{display:none}}

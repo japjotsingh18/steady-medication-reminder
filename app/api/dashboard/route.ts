@@ -3,6 +3,7 @@ import { ensureDemoData, getDoses, getMedications } from "../../../db/runtime";
 
 export async function GET() {
   try {
+    await ensureDemoData();
     const [medications, doses] = await Promise.all([getMedications(), getDoses()]);
     return Response.json({ senior: { id: 1, name: "Evelyn", inviteCode: "EVELYN-STEADY" }, caregiver: { name: "Maya" }, medications, doses });
   } catch (error) {
