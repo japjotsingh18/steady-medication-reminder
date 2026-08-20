@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Bell, CalendarDays, Check, ChevronDown, CircleHelp, Clock3, Copy, Eye, History, LayoutDashboard, Link2, Mail, Pill as Medication, Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck, Smartphone, X } from "lucide-react";
 import { useDashboard } from "../hooks";
-import { Dose } from "../types";
+import { Dose, Medication as MedicationData } from "../types";
 import { getLocalPhoto } from "../local-photos";
 
 type Tab = "overview" | "medications" | "history";
@@ -14,6 +14,7 @@ export function CaregiverDashboard() {
   const { data, loading, refresh } = useDashboard();
   const [tab, setTab] = useState<Tab>("overview");
   const [addOpen, setAddOpen] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<MedicationData | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [utilityPanel, setUtilityPanel] = useState<UtilityPanel>(null);
@@ -44,11 +45,12 @@ export function CaregiverDashboard() {
         <header className="dashboard-header"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu /></button><div><p className="eyebrow">{tab}</p><h1>{tab === "overview" ? `Good afternoon, ${data.caregiver.name}` : tab === "medications" ? "Medications" : "Adherence history"}</h1><p>{tab === "overview" ? `Here’s how ${data.senior.name} is doing today.` : tab === "medications" ? `Manage ${data.senior.name}’s medication schedule.` : `Review confirmed and missed doses.`}</p></div><div className="header-actions"><Link href="/" className="secondary-compact view-as-senior"><Eye />View as {data.senior.name}</Link><button className="icon-button" onClick={() => setUtilityPanel("notifications")} aria-label="Notifications"><Bell /></button><button className="secondary-compact senior-link-action" onClick={() => setInviteOpen(true)}><Link2 />Senior link</button><button className="primary-compact" onClick={() => setAddOpen(true)}><Plus />Add medication</button></div></header>
 
         {tab === "overview" && <Overview data={data} todayDoses={todayDoses} taken={taken} missed={missed} adherence={adherence} loading={loading} onShowSchedule={() => setTab("medications")} onShowHistory={() => setTab("history")} onNotify={notify} />}
-        {tab === "medications" && <MedicationsView data={data} onAdd={() => setAddOpen(true)} />}
+        {tab === "medications" && <MedicationsView data={data} onAdd={() => setAddOpen(true)} onEdit={setEditingMedication} />}
         {tab === "history" && <HistoryView doses={data.doses} />}
       </section>
 
-      {addOpen && <AddMedication onClose={() => setAddOpen(false)} onSaved={async () => { setAddOpen(false); await refresh(); notify("Medication added to Evelyn’s schedule"); }} />}
+      {addOpen && <MedicationEditor onClose={() => setAddOpen(false)} onSaved={async () => { setAddOpen(false); await refresh(); notify("Medication added to Evelyn’s schedule"); }} />}
+      {editingMedication && <MedicationEditor medication={editingMedication} onClose={() => setEditingMedication(null)} onSaved={async () => { setEditingMedication(null); await refresh(); notify("Medication schedule updated"); }} />}
       {inviteOpen && <InvitePanel code={data.senior.inviteCode} onClose={() => setInviteOpen(false)} onCopy={() => { void navigator.clipboard?.writeText(`${window.location.origin}/?invite=${data.senior.inviteCode}`); notify("Senior link copied"); }} />}
       {utilityPanel === "settings" && <SettingsPanel onClose={() => setUtilityPanel(null)} onSave={() => { setUtilityPanel(null); notify("Settings saved"); }} />}
       {utilityPanel === "help" && <HelpPanel onClose={() => setUtilityPanel(null)} />}
@@ -95,8 +97,15 @@ function CareDoseRow({ dose, onOptions }: { dose: Dose; onOptions: () => void })
 
 function Activity({ icon, title, detail }: { icon: "check" | "missed"; title: string; detail: string }) { return <div><span className={`activity-icon ${icon}`}>{icon === "check" ? <Check /> : <AlertTriangle />}</span><div><strong>{title}</strong><p>{detail}</p></div><span className="activity-time">{icon === "check" ? "Today" : "Yesterday"}</span></div>; }
 
-function MedicationsView({ data, onAdd }: { data: ReturnType<typeof useDashboard>["data"]; onAdd: () => void }) {
-  return <div className="dashboard-content"><section className="panel meds-panel"><div className="table-toolbar"><div className="search"><Search /><input aria-label="Search medications" placeholder="Search medications" /></div><button className="primary-compact" onClick={onAdd}><Plus />Add medication</button></div><div className="med-table">{data.medications.map((med) => <div className="med-row" key={med.id}><div className={`med-color ${med.color}`}><Medication /></div><div><strong>{med.name}</strong><span>{med.dosage}</span></div><div><small>Schedule</small><strong>{med.scheduleTimes.join(", ")}</strong></div><div><small>Photo check</small><strong>{med.requiresPhoto ? "Required" : "Not required"}</strong></div><button aria-label={`Edit ${med.name}`}><MoreHorizontal /></button></div>)}</div></section></div>;
+function MedicationsView({ data, onAdd, onEdit }: { data: ReturnType<typeof useDashboard>["data"]; onAdd: () => void; onEdit: (medication: MedicationData) => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return <div className="dashboard-content"><section className="panel meds-panel"><div className="table-toolbar"><div className="search"><Search /><input aria-label="Search medications" placeholder="Search medications" /></div><button className="primary-compact" onClick={onAdd}><Plus />Add medication</button></div><div className="med-table">{data.medications.map((med) => {
+    const expired = Boolean(med.endDate && med.endDate < today);
+    const status = !med.active ? "Paused" : expired ? "Ended" : "Active";
+    const days = med.daysOfWeek.length === 7 ? "Every day" : med.daysOfWeek.map((day) => dayNames[day]).join(", ");
+    return <div className="med-row" key={med.id}><div className={`med-color ${med.color}`}><Medication /></div><div><strong>{med.name}</strong><span>{med.dosage}</span><small className={`med-status ${status.toLowerCase()}`}>{status}</small></div><div><small>Schedule</small><strong>{days} · {med.scheduleTimes.join(", ")}</strong><span>{med.endDate ? `Through ${med.endDate}` : "No end date"}</span></div><div><small>Photo check</small><strong>{med.requiresPhoto ? "Required" : "Not required"}</strong></div><button onClick={() => onEdit(med)} aria-label={`Edit ${med.name}`}><MoreHorizontal /></button></div>;
+  })}</div></section></div>;
 }
 
 function HistoryView({ doses }: { doses: Dose[] }) {
@@ -119,14 +128,40 @@ function HistoryThumbnail({ photoKey }: { photoKey: string }) {
   return <img src={source} alt="Confirmation thumbnail stored on this device" />;
 }
 
-function AddMedication({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+const scheduleDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function dateAfterMonths(months: number) {
+  const value = new Date();
+  value.setMonth(value.getMonth() + months);
+  return value.toISOString().slice(0, 10);
+}
+
+function toTimeInput(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return value;
+  const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+function MedicationEditor({ medication, onClose, onSaved }: { medication?: MedicationData; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [times, setTimes] = useState(() => medication?.scheduleTimes.map(toTimeInput) ?? ["08:00"]);
+  const [hasEndDate, setHasEndDate] = useState(() => medication ? Boolean(medication.endDate) : true);
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/dashboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: form.get("name"), dosage: form.get("dosage"), times: [form.get("time")], instructions: form.get("instructions"), requiresPhoto: form.get("photo") === "on" }) });
-    setSaving(false); if (response.ok) onSaved();
+    event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/dashboard", { method: medication ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: medication?.id, name: form.get("name"), dosage: form.get("dosage"), times, daysOfWeek: form.getAll("days").map(Number), startDate: form.get("startDate"), endDate: hasEndDate ? form.get("endDate") : null, instructions: form.get("instructions"), requiresPhoto: form.get("photo") === "on", active: medication?.active ?? true }) });
+    const result = await response.json() as { error?: string };
+    setSaving(false); if (response.ok) onSaved(); else setError(result.error ?? "Unable to save this medication.");
   }
-  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet" aria-labelledby="add-title"><header><div><p className="eyebrow">Medication setup</p><h2 id="add-title">Add a medication</h2><p>It will appear on Evelyn’s daily schedule.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><label>Medication name<input name="name" placeholder="e.g. Metformin" required autoFocus /></label><label>Dosage<input name="dosage" placeholder="e.g. 500 mg · 1 tablet" required /></label><label>Time each day<input name="time" type="time" required /></label><label>Simple instructions<textarea name="instructions" placeholder="e.g. Take with breakfast" /></label><label className="toggle-label"><span><strong>Photo confirmation</strong><small>Ask Evelyn to take a quick photo</small></span><input name="photo" type="checkbox" defaultChecked /></label><div className="sheet-actions"><button type="button" className="secondary-compact" onClick={onClose}>Cancel</button><button className="primary-compact" disabled={saving}>{saving ? "Adding…" : "Add medication"}</button></div></form></section></div>;
+  async function toggleActive() {
+    if (!medication) return;
+    setSaving(true); setError("");
+    const response = await fetch("/api/dashboard", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: medication.id, active: !medication.active }) });
+    setSaving(false); if (response.ok) onSaved(); else setError("Unable to change this medication right now.");
+  }
+  const startDate = medication?.startDate ?? new Date().toISOString().slice(0, 10);
+  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet medication-sheet" aria-labelledby="medication-editor-title"><header><div><p className="eyebrow">Medication setup</p><h2 id="medication-editor-title">{medication ? `Edit ${medication.name}` : "Add a medication"}</h2><p>Choose exactly when it should appear for Evelyn.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><label>Medication name<input name="name" placeholder="e.g. Metformin" defaultValue={medication?.name} required autoFocus /></label><label>Dosage<input name="dosage" placeholder="e.g. 500 mg · 1 tablet" defaultValue={medication?.dosage} required /></label><fieldset className="day-picker"><legend>Days of the week</legend><div>{scheduleDays.map((day, index) => <label key={day}><input type="checkbox" name="days" value={index} defaultChecked={medication ? medication.daysOfWeek.includes(index) : true} /><span>{day}</span></label>)}</div></fieldset><fieldset className="time-picker"><legend>Times</legend>{times.map((time, index) => <div key={`${index}-${time}`}><input type="time" value={time} required aria-label={`Medication time ${index + 1}`} onChange={(event) => setTimes((current) => current.map((value, item) => item === index ? event.target.value : value))} />{times.length > 1 && <button type="button" className="icon-button" onClick={() => setTimes((current) => current.filter((_, item) => item !== index))} aria-label={`Remove time ${index + 1}`}><X /></button>}</div>)}<button type="button" className="add-time-button" onClick={() => setTimes((current) => [...current, "12:00"])}><Plus />Add another time</button></fieldset><div className="date-grid"><label>Start date<input name="startDate" type="date" defaultValue={startDate} required /></label><label>End date<input name="endDate" type="date" defaultValue={medication?.endDate ?? dateAfterMonths(3)} disabled={!hasEndDate} required={hasEndDate} /></label></div><label className="toggle-label"><span><strong>Set an end date</strong><small>Automatically stop showing doses after this date</small></span><input type="checkbox" checked={hasEndDate} onChange={(event) => setHasEndDate(event.target.checked)} /></label><label>Simple instructions<textarea name="instructions" placeholder="e.g. Take with breakfast" defaultValue={medication?.instructions} /></label><label className="toggle-label"><span><strong>Photo confirmation</strong><small>Ask Evelyn to take a quick photo</small></span><input name="photo" type="checkbox" defaultChecked={medication?.requiresPhoto ?? true} /></label>{error && <p className="form-error" role="alert">{error}</p>}<div className="sheet-actions medication-actions">{medication && <button type="button" className="danger-compact" onClick={() => void toggleActive()} disabled={saving}>{medication.active ? "Pause medication" : "Resume medication"}</button>}<span /><button type="button" className="secondary-compact" onClick={onClose}>Cancel</button><button className="primary-compact" disabled={saving}>{saving ? "Saving…" : medication ? "Save changes" : "Add medication"}</button></div></form></section></div>;
 }
 
 function InvitePanel({ code, onClose, onCopy }: { code: string; onClose: () => void; onCopy: () => void }) { return <div className="sheet-backdrop"><section className="invite-dialog" aria-labelledby="invite-title"><button className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X /></button><div className="invite-icon"><Link2 /></div><p className="eyebrow">Senior device setup</p><h2 id="invite-title">Connect Evelyn’s phone</h2><p>Open this private link on Evelyn’s phone once. After that, Steady opens directly to her medication reminder.</p><div className="invite-code"><span>{code}</span><button onClick={onCopy}><Copy />Copy link</button></div><Link href={`/?invite=${code}`} className="primary-compact" onClick={onClose}>Preview senior view</Link></section></div>; }

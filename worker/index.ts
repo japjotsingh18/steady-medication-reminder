@@ -8,9 +8,9 @@ import handler from "vinext/server/app-router-entry";
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
 const worker = {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    return handler.fetch(request, env, ctx);
+  async fetch(request: Request, _env: Env, ctx: ExecutionContext): Promise<Response> {
+    return handler.fetch(request, undefined, ctx);
   },
-};
+} satisfies ExportedHandler<Env>;
 
 export default worker;

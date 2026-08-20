@@ -7,6 +7,10 @@ export type Medication = {
   instructions: string;
   requiresPhoto: boolean;
   color: string;
+  startDate: string | null;
+  endDate: string | null;
+  daysOfWeek: number[];
+  active: boolean;
 };
 
 export type Dose = {
@@ -35,9 +39,9 @@ export const fallbackData: DashboardData = {
   senior: { id: 1, name: "Evelyn", inviteCode: "EVELYN-STEADY" },
   caregiver: { name: "Maya" },
   medications: [
-    { id: 1, seniorId: 1, name: "Lisinopril", dosage: "10 mg · 1 tablet", scheduleTimes: ["8:00 AM"], instructions: "Take with a glass of water", requiresPhoto: true, color: "sage" },
-    { id: 2, seniorId: 1, name: "Vitamin D3", dosage: "1,000 IU · 1 softgel", scheduleTimes: ["2:00 PM"], instructions: "Take with food", requiresPhoto: true, color: "gold" },
-    { id: 3, seniorId: 1, name: "Atorvastatin", dosage: "20 mg · 1 tablet", scheduleTimes: ["8:00 PM"], instructions: "Take in the evening", requiresPhoto: false, color: "clay" },
+    { id: 1, seniorId: 1, name: "Lisinopril", dosage: "10 mg · 1 tablet", scheduleTimes: ["8:00 AM"], instructions: "Take with a glass of water", requiresPhoto: true, color: "sage", startDate: date, endDate: null, daysOfWeek: [0, 1, 2, 3, 4, 5, 6], active: true },
+    { id: 2, seniorId: 1, name: "Vitamin D3", dosage: "1,000 IU · 1 softgel", scheduleTimes: ["2:00 PM"], instructions: "Take with food", requiresPhoto: true, color: "gold", startDate: date, endDate: null, daysOfWeek: [0, 1, 2, 3, 4, 5, 6], active: true },
+    { id: 3, seniorId: 1, name: "Atorvastatin", dosage: "20 mg · 1 tablet", scheduleTimes: ["8:00 PM"], instructions: "Take in the evening", requiresPhoto: false, color: "clay", startDate: date, endDate: null, daysOfWeek: [0, 1, 2, 3, 4, 5, 6], active: true },
   ],
   doses: [
     { id: 1, medicationId: 1, medicationName: "Lisinopril", dosage: "10 mg · 1 tablet", scheduledDate: date, scheduledTime: "8:00 AM", confirmedAt: `${date}T08:07:00`, photoKey: null, status: "taken" },

@@ -9,6 +9,10 @@ export type MedicationRecord = {
   instructions: string;
   requiresPhoto: boolean;
   color: string;
+  startDate: string | null;
+  endDate: string | null;
+  daysOfWeek: number[];
+  active: boolean;
 };
 
 export type DoseRecord = {
@@ -36,7 +40,7 @@ async function ensureScheduledDoses(daysAhead = 30) {
   const startDate = today();
   const endDate = addUtcDays(startDate, daysAhead);
   const [medications, existingDoses] = await Promise.all([
-    db.prepare("SELECT id, schedule_times FROM medications ORDER BY id").all<{ id: number; schedule_times: string }>(),
+    db.prepare("SELECT id, schedule_times, start_date, end_date, days_of_week, active FROM medications ORDER BY id").all<{ id: number; schedule_times: string; start_date: string | null; end_date: string | null; days_of_week: string; active: number }>(),
     db.prepare("SELECT medication_id, scheduled_date, scheduled_time FROM dose_logs WHERE scheduled_date BETWEEN ? AND ?")
       .bind(startDate, endDate)
       .all<{ medication_id: number; scheduled_date: string; scheduled_time: string }>(),
@@ -45,9 +49,14 @@ async function ensureScheduledDoses(daysAhead = 30) {
   const inserts: D1PreparedStatement[] = [];
 
   for (const medication of medications.results) {
+    if (!medication.active) continue;
     const scheduleTimes = JSON.parse(medication.schedule_times) as string[];
+    const daysOfWeek = new Set(JSON.parse(medication.days_of_week) as number[]);
     for (let offset = 0; offset <= daysAhead; offset += 1) {
       const scheduledDate = addUtcDays(startDate, offset);
+      if (medication.start_date && scheduledDate < medication.start_date) continue;
+      if (medication.end_date && scheduledDate > medication.end_date) continue;
+      if (!daysOfWeek.has(new Date(`${scheduledDate}T00:00:00.000Z`).getUTCDay())) continue;
       for (const scheduledTime of scheduleTimes) {
         const key = `${medication.id}|${scheduledDate}|${scheduledTime}`;
         if (existing.has(key)) continue;
@@ -66,7 +75,7 @@ export async function ensureDemoData() {
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS caregivers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS seniors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, caregiver_id INTEGER NOT NULL, invite_code TEXT NOT NULL)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS medications (id INTEGER PRIMARY KEY AUTOINCREMENT, senior_id INTEGER NOT NULL, name TEXT NOT NULL, dosage TEXT NOT NULL, schedule_times TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', requires_photo INTEGER NOT NULL DEFAULT 1, color TEXT NOT NULL DEFAULT 'sage')"),
+    db.prepare("CREATE TABLE IF NOT EXISTS medications (id INTEGER PRIMARY KEY AUTOINCREMENT, senior_id INTEGER NOT NULL, name TEXT NOT NULL, dosage TEXT NOT NULL, schedule_times TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', requires_photo INTEGER NOT NULL DEFAULT 1, color TEXT NOT NULL DEFAULT 'sage', start_date TEXT, end_date TEXT, days_of_week TEXT NOT NULL DEFAULT '[0,1,2,3,4,5,6]', active INTEGER NOT NULL DEFAULT 1)"),
     db.prepare("CREATE TABLE IF NOT EXISTS dose_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, medication_id INTEGER NOT NULL, scheduled_date TEXT NOT NULL, scheduled_time TEXT NOT NULL, confirmed_at TEXT, photo_key TEXT, status TEXT NOT NULL)"),
     db.prepare("CREATE INDEX IF NOT EXISTS dose_logs_date_idx ON dose_logs (scheduled_date, scheduled_time)"),
   ]);
@@ -98,6 +107,10 @@ export async function getMedications(): Promise<MedicationRecord[]> {
     instructions: String(row.instructions),
     requiresPhoto: Boolean(row.requires_photo),
     color: String(row.color),
+    startDate: row.start_date ? String(row.start_date) : null,
+    endDate: row.end_date ? String(row.end_date) : null,
+    daysOfWeek: JSON.parse(String(row.days_of_week ?? "[0,1,2,3,4,5,6]")),
+    active: Boolean(row.active),
   }));
 }
 

@@ -5,6 +5,8 @@ import test from "node:test";
 const seniorHomeUrl = new URL("../app/senior-home.tsx", import.meta.url);
 const stylesUrl = new URL("../app/globals.css", import.meta.url);
 const runtimeUrl = new URL("../db/runtime.ts", import.meta.url);
+const dashboardApiUrl = new URL("../app/api/dashboard/route.ts", import.meta.url);
+const caregiverUrl = new URL("../app/caregiver/caregiver-dashboard.tsx", import.meta.url);
 
 test("senior view uses the local clock for reminder wording", async () => {
   const source = await readFile(seniorHomeUrl, "utf8");
@@ -16,6 +18,24 @@ test("senior view uses the local clock for reminder wording", async () => {
   assert.match(source, /return "Due now"/);
   assert.match(source, /window\.setInterval\(\(\) => setNow\(new Date\(\)\), 60_000\)/);
   assert.match(source, /className="senior-shell senior-home-shell"/);
+});
+
+test("caregivers can create, edit, pause, and end flexible medication schedules", async () => {
+  const [api, caregiver, runtime] = await Promise.all([
+    readFile(dashboardApiUrl, "utf8"),
+    readFile(caregiverUrl, "utf8"),
+    readFile(runtimeUrl, "utf8"),
+  ]);
+
+  assert.match(api, /export async function PATCH/);
+  assert.match(api, /daysOfWeek/);
+  assert.match(api, /DELETE FROM dose_logs WHERE medication_id = \? AND status = 'pending'/);
+  assert.match(caregiver, /Days of the week/);
+  assert.match(caregiver, /Add another time/);
+  assert.match(caregiver, /Set an end date/);
+  assert.match(caregiver, /Pause medication/);
+  assert.match(runtime, /daysOfWeek\.has/);
+  assert.match(runtime, /scheduledDate > medication\.end_date/);
 });
 
 test("senior view expands on desktop and stays single-column on mobile", async () => {
