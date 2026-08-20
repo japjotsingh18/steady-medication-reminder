@@ -12,7 +12,7 @@ Steady is a mobile-first medication reminder designed for seniors and the people
 - A senior home screen with the next dose, a large **I took it** action, camera capture, photo review, confirmation, and spoken reminder support.
 - A clear daily medication schedule using both text and icons for status.
 - A caregiver dashboard with today’s schedule, adherence summaries, missed-dose indicators, medication management, history, and a senior-device link.
-- Seeded demo data for Evelyn and her caregiver Maya.
+- Seeded demo data for Baljit Singh and caregiver Japjot Singh.
 - Durable medication and dose records in Cloudflare D1. Confirmation photos stay in the browser’s IndexedDB storage and are only visible on that device.
 
 ## Accessibility decisions

@@ -83,8 +83,8 @@ export async function ensureDemoData() {
   const count = await db.prepare("SELECT COUNT(*) AS count FROM medications").first<{ count: number }>();
   if (Number(count?.count ?? 0) === 0) {
     await db.batch([
-      db.prepare("INSERT OR IGNORE INTO caregivers (id, name, email) VALUES (1, 'Maya', 'maya@example.com')"),
-      db.prepare("INSERT OR IGNORE INTO seniors (id, name, caregiver_id, invite_code) VALUES (1, 'Evelyn', 1, 'EVELYN-STEADY')"),
+      db.prepare("INSERT OR IGNORE INTO caregivers (id, name, email) VALUES (1, 'Japjot Singh', 'japjot@example.com')"),
+      db.prepare("INSERT OR IGNORE INTO seniors (id, name, caregiver_id, invite_code) VALUES (1, 'Baljit Singh', 1, 'BALJIT-STEADY')"),
       db.prepare("INSERT INTO medications (senior_id, name, dosage, schedule_times, instructions, requires_photo, color) VALUES (1, 'Lisinopril', '10 mg · 1 tablet', '[\"8:00 AM\"]', 'Take with a glass of water', 1, 'sage')"),
       db.prepare("INSERT INTO medications (senior_id, name, dosage, schedule_times, instructions, requires_photo, color) VALUES (1, 'Vitamin D3', '1,000 IU · 1 softgel', '[\"2:00 PM\"]', 'Take with food', 1, 'gold')"),
       db.prepare("INSERT INTO medications (senior_id, name, dosage, schedule_times, instructions, requires_photo, color) VALUES (1, 'Atorvastatin', '20 mg · 1 tablet', '[\"8:00 PM\"]', 'Take in the evening', 0, 'clay')"),
@@ -94,6 +94,14 @@ export async function ensureDemoData() {
   // Keep a rolling month ready. Opening either dashboard extends the window,
   // so the demo continues to have a useful schedule without a paid cron job.
   await ensureScheduledDoses();
+}
+
+export async function getProfile() {
+  const row = await env.DB.prepare("SELECT s.id AS senior_id, s.name AS senior_name, s.invite_code, c.name AS caregiver_name FROM seniors s JOIN caregivers c ON c.id = s.caregiver_id WHERE s.id = 1").first<Record<string, unknown>>();
+  return {
+    senior: { id: Number(row?.senior_id ?? 1), name: String(row?.senior_name ?? "Baljit Singh"), inviteCode: String(row?.invite_code ?? "BALJIT-STEADY") },
+    caregiver: { name: String(row?.caregiver_name ?? "Japjot Singh") },
+  };
 }
 
 export async function getMedications(): Promise<MedicationRecord[]> {

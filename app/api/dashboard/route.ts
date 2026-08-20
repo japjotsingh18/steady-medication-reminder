@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { ensureDemoData, getDoses, getMedications } from "../../../db/runtime";
+import { ensureDemoData, getDoses, getMedications, getProfile } from "../../../db/runtime";
 
 type MedicationInput = {
   id?: number;
@@ -41,8 +41,8 @@ function validateMedication(body: MedicationInput) {
 export async function GET() {
   try {
     await ensureDemoData();
-    const [medications, doses] = await Promise.all([getMedications(), getDoses()]);
-    return Response.json({ senior: { id: 1, name: "Evelyn", inviteCode: "EVELYN-STEADY" }, caregiver: { name: "Maya" }, medications, doses });
+    const [profile, medications, doses] = await Promise.all([getProfile(), getMedications(), getDoses()]);
+    return Response.json({ ...profile, medications, doses });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to load dashboard" }, { status: 500 });
   }
