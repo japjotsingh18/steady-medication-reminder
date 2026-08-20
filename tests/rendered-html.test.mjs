@@ -4,6 +4,7 @@ import test from "node:test";
 
 const seniorHomeUrl = new URL("../app/senior-home.tsx", import.meta.url);
 const stylesUrl = new URL("../app/globals.css", import.meta.url);
+const runtimeUrl = new URL("../db/runtime.ts", import.meta.url);
 
 test("senior view uses the local clock for reminder wording", async () => {
   const source = await readFile(seniorHomeUrl, "utf8");
@@ -25,4 +26,14 @@ test("senior view expands on desktop and stays single-column on mobile", async (
   assert.match(css, /grid-template-columns:minmax\(0,1\.08fr\) minmax\(360px,\.92fr\)/);
   assert.match(css, /grid-template-areas:"header header" "greeting today" "card today" "footer today"/);
   assert.match(css, /@media \(max-width:480px\)/);
+});
+
+test("demo medication schedules roll forward instead of expiring", async () => {
+  const source = await readFile(runtimeUrl, "utf8");
+
+  assert.match(source, /async function ensureScheduledDoses\(daysAhead = 30\)/);
+  assert.match(source, /offset <= daysAhead/);
+  assert.match(source, /await ensureScheduledDoses\(\)/);
+  assert.match(source, /scheduled_date BETWEEN date\('now', '-7 days'\) AND date\('now'\)/);
+  assert.match(source, /minutes\(a\.scheduledTime\) - minutes\(b\.scheduledTime\)/);
 });
