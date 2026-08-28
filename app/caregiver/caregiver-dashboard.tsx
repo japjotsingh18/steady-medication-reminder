@@ -1,19 +1,25 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bell, CalendarDays, Check, ChevronDown, CircleHelp, Clock3, Copy, History, LayoutDashboard, Link2, Pill as Medication, Menu, MoreHorizontal, Plus, Search, Settings, X } from "lucide-react";
+import { AlertTriangle, Bell, CalendarDays, Check, ChevronDown, CircleHelp, Clock3, Copy, Eye, History, LayoutDashboard, Link2, Mail, Pill as Medication, Menu, MoreHorizontal, Plus, Search, Settings, ShieldCheck, Smartphone, X } from "lucide-react";
 import { useDashboard } from "../hooks";
-import { Dose } from "../types";
+import { Dose, Medication as MedicationData } from "../types";
+import { getLocalPhoto } from "../local-photos";
 
 type Tab = "overview" | "medications" | "history";
+type UtilityPanel = "settings" | "help" | "notifications" | null;
+
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
 export function CaregiverDashboard() {
   const { data, loading, refresh } = useDashboard();
   const [tab, setTab] = useState<Tab>("overview");
   const [addOpen, setAddOpen] = useState(false);
+  const [editingMedication, setEditingMedication] = useState<MedicationData | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
+  const [utilityPanel, setUtilityPanel] = useState<UtilityPanel>(null);
   const [toast, setToast] = useState("");
   const today = new Date().toISOString().slice(0, 10);
   const todayDoses = data.doses.filter((dose) => dose.scheduledDate === today);
@@ -27,26 +33,30 @@ export function CaregiverDashboard() {
     <main className="caregiver-shell">
       <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
         <div className="sidebar-top"><Link href="/caregiver" className="brand light"><span className="brand-mark">S</span><span>Steady</span></Link><button className="nav-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X /></button></div>
-        <div className="senior-chip"><span>EV</span><div><small>Caring for</small><strong>{data.senior.name} Martin</strong></div><ChevronDown aria-hidden="true" /></div>
+        <Link href="/" className="senior-chip" aria-label={`View ${data.senior.name}'s senior screen`}><span>{initials(data.senior.name)}</span><div><small>Caring for</small><strong>{data.senior.name}</strong></div><Eye aria-hidden="true" /></Link>
         <nav aria-label="Caregiver navigation">
           <NavButton active={tab === "overview"} onClick={() => { setTab("overview"); setMobileNav(false); }} icon={<LayoutDashboard />} label="Overview" />
           <NavButton active={tab === "medications"} onClick={() => { setTab("medications"); setMobileNav(false); }} icon={<Medication />} label="Medications" />
           <NavButton active={tab === "history"} onClick={() => { setTab("history"); setMobileNav(false); }} icon={<History />} label="History" />
         </nav>
-        <div className="sidebar-links"><button><Settings />Settings</button><button><CircleHelp />Help & support</button></div>
-        <div className="caregiver-profile"><span>MS</span><div><strong>Maya Singh</strong><small>Caregiver</small></div><MoreHorizontal /></div>
+        <div className="sidebar-links"><Link href="/" className="view-senior-link"><Smartphone />View {data.senior.name}’s screen</Link><button onClick={() => setUtilityPanel("settings")}><Settings />Settings</button><button onClick={() => setUtilityPanel("help")}><CircleHelp />Help & support</button></div>
+        <div className="caregiver-profile"><span>{initials(data.caregiver.name)}</span><div><strong>{data.caregiver.name}</strong><small>Caregiver</small></div><MoreHorizontal /></div>
       </aside>
 
       <section className="dashboard-main">
-        <header className="dashboard-header"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu /></button><div><p className="eyebrow">{tab}</p><h1>{tab === "overview" ? `Good afternoon, ${data.caregiver.name}` : tab === "medications" ? "Medications" : "Adherence history"}</h1><p>{tab === "overview" ? `Here’s how ${data.senior.name} is doing today.` : tab === "medications" ? `Manage ${data.senior.name}’s medication schedule.` : `Review confirmed and missed doses.`}</p></div><div className="header-actions"><button className="icon-button" aria-label="Notifications"><Bell /></button><button className="secondary-compact" onClick={() => setInviteOpen(true)}><Link2 />Senior link</button><button className="primary-compact" onClick={() => setAddOpen(true)}><Plus />Add medication</button></div></header>
+        <header className="dashboard-header"><button className="mobile-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu /></button><div><p className="eyebrow">{tab}</p><h1>{tab === "overview" ? `Good afternoon, ${data.caregiver.name}` : tab === "medications" ? "Medications" : "Adherence history"}</h1><p>{tab === "overview" ? `Here’s how ${data.senior.name} is doing today.` : tab === "medications" ? `Manage ${data.senior.name}’s medication schedule.` : `Review confirmed and missed doses.`}</p></div><div className="header-actions"><Link href="/" className="secondary-compact view-as-senior"><Eye />View as {data.senior.name}</Link><button className="icon-button" onClick={() => setUtilityPanel("notifications")} aria-label="Notifications"><Bell /></button><button className="secondary-compact senior-link-action" onClick={() => setInviteOpen(true)}><Link2 />Senior link</button><button className="primary-compact" onClick={() => setAddOpen(true)}><Plus />Add medication</button></div></header>
 
-        {tab === "overview" && <Overview data={data} todayDoses={todayDoses} taken={taken} missed={missed} adherence={adherence} loading={loading} />}
-        {tab === "medications" && <MedicationsView data={data} onAdd={() => setAddOpen(true)} />}
+        {tab === "overview" && <Overview data={data} todayDoses={todayDoses} taken={taken} missed={missed} adherence={adherence} loading={loading} onShowSchedule={() => setTab("medications")} onShowHistory={() => setTab("history")} onNotify={notify} />}
+        {tab === "medications" && <MedicationsView data={data} onAdd={() => setAddOpen(true)} onEdit={setEditingMedication} />}
         {tab === "history" && <HistoryView doses={data.doses} />}
       </section>
 
-      {addOpen && <AddMedication onClose={() => setAddOpen(false)} onSaved={async () => { setAddOpen(false); await refresh(); notify("Medication added to Evelyn’s schedule"); }} />}
-      {inviteOpen && <InvitePanel code={data.senior.inviteCode} onClose={() => setInviteOpen(false)} onCopy={() => { void navigator.clipboard?.writeText(`${window.location.origin}/?invite=${data.senior.inviteCode}`); notify("Senior link copied"); }} />}
+      {addOpen && <MedicationEditor seniorName={data.senior.name} onClose={() => setAddOpen(false)} onSaved={async () => { setAddOpen(false); await refresh(); notify(`Medication added to ${data.senior.name}’s schedule`); }} />}
+      {editingMedication && <MedicationEditor seniorName={data.senior.name} medication={editingMedication} onClose={() => setEditingMedication(null)} onSaved={async () => { setEditingMedication(null); await refresh(); notify("Medication schedule updated"); }} />}
+      {inviteOpen && <InvitePanel seniorName={data.senior.name} code={data.senior.inviteCode} onClose={() => setInviteOpen(false)} onCopy={() => { void navigator.clipboard?.writeText(`${window.location.origin}/?invite=${data.senior.inviteCode}`); notify("Senior link copied"); }} />}
+      {utilityPanel === "settings" && <SettingsPanel seniorName={data.senior.name} caregiverName={data.caregiver.name} onClose={() => setUtilityPanel(null)} onSave={() => { setUtilityPanel(null); notify("Settings saved"); }} />}
+      {utilityPanel === "help" && <HelpPanel seniorName={data.senior.name} onClose={() => setUtilityPanel(null)} />}
+      {utilityPanel === "notifications" && <NotificationsPanel onClose={() => setUtilityPanel(null)} onViewHistory={() => { setUtilityPanel(null); setTab("history"); }} />}
       {toast && <div className="toast" role="status"><Check />{toast}</div>}
     </main>
   );
@@ -56,7 +66,7 @@ function NavButton({ active, onClick, icon, label }: { active: boolean; onClick:
   return <button className={active ? "active" : ""} onClick={onClick}>{icon}{label}</button>;
 }
 
-function Overview({ data, todayDoses, taken, missed, adherence, loading }: { data: ReturnType<typeof useDashboard>["data"]; todayDoses: Dose[]; taken: number; missed: number; adherence: number; loading: boolean }) {
+function Overview({ data, todayDoses, taken, missed, adherence, loading, onShowSchedule, onShowHistory, onNotify }: { data: ReturnType<typeof useDashboard>["data"]; todayDoses: Dose[]; taken: number; missed: number; adherence: number; loading: boolean; onShowSchedule: () => void; onShowHistory: () => void; onNotify: (message: string) => void }) {
   return <div className="dashboard-content">
     <section className="summary-grid" aria-label="Daily summary">
       <article><div className="summary-icon green"><Check /></div><div><span>Taken today</span><strong>{taken} <small>of {todayDoses.length}</small></strong><p>On track</p></div></article>
@@ -66,31 +76,38 @@ function Overview({ data, todayDoses, taken, missed, adherence, loading }: { dat
     </section>
 
     <div className="dashboard-columns">
-      <section className="panel"><div className="panel-heading"><div><h2>Today’s schedule</h2><p>{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p></div><button>View full day</button></div>
-        <div className="care-dose-list">{todayDoses.map((dose) => <CareDoseRow key={dose.id} dose={dose} />)}</div>
+      <section className="panel"><div className="panel-heading"><div><h2>Today’s schedule</h2><p>{new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p></div><button onClick={onShowSchedule}>View full day</button></div>
+        <div className="care-dose-list">{todayDoses.map((dose) => <CareDoseRow key={dose.id} dose={dose} onOptions={() => onNotify(`${dose.medicationName} details are shown in Medications`)} />)}</div>
         {loading && <p className="muted">Syncing the latest confirmations…</p>}
       </section>
-      <section className="panel adherence-panel"><div className="panel-heading"><div><h2>This week</h2><p>Medication adherence</p></div><button><MoreHorizontal /></button></div>
+      <section className="panel adherence-panel"><div className="panel-heading"><div><h2>This week</h2><p>Medication adherence</p></div><button onClick={onShowHistory} aria-label="View adherence history"><MoreHorizontal /></button></div>
         <div className="ring" style={{ "--progress": `${Math.max(adherence, 75)}%` } as React.CSSProperties}><div><strong>{Math.max(adherence, 83)}%</strong><span>adherence</span></div></div>
         <div className="week-bars">{[100, 100, 67, 100, 100, 50, 0].map((value, index) => <div key={index}><span style={{ height: `${Math.max(value, 5)}%` }} className={value === 50 ? "warning" : value === 0 ? "future" : ""} /><small>{["M", "T", "W", "T", "F", "S", "S"][index]}</small></div>)}</div>
         <div className="legend"><span><i className="dot green-dot" />15 taken</span><span><i className="dot red-dot" />1 missed</span></div>
       </section>
     </div>
 
-    <section className="panel activity-panel"><div className="panel-heading"><div><h2>Recent activity</h2><p>Latest updates from {data.senior.name}</p></div><button>View history</button></div>
+    <section className="panel activity-panel"><div className="panel-heading"><div><h2>Recent activity</h2><p>Latest updates from {data.senior.name}</p></div><button onClick={onShowHistory}>View history</button></div>
       <div className="activity-list"><Activity icon="check" title="Lisinopril confirmed" detail="Today at 8:07 AM · Photo confirmed" /><Activity icon="missed" title="Vitamin D3 was missed" detail="Yesterday at 2:00 PM" /><Activity icon="check" title="Atorvastatin confirmed" detail="Yesterday at 8:12 PM · No photo required" /></div>
     </section>
   </div>;
 }
 
-function CareDoseRow({ dose }: { dose: Dose }) {
-  return <div className={`care-dose-row ${dose.status}`}><div className="dose-time"><strong>{dose.scheduledTime.split(" ")[0]}</strong><span>{dose.scheduledTime.split(" ")[1]}</span></div><div className="mini-pill" aria-hidden="true"><span /></div><div className="dose-info"><strong>{dose.medicationName}</strong><span>{dose.dosage}</span></div><div className="dose-status">{dose.status === "taken" ? <><Check />Taken at 8:07 AM</> : <><Clock3 />Upcoming</>}</div><button aria-label={`More options for ${dose.medicationName}`}><MoreHorizontal /></button></div>;
+function CareDoseRow({ dose, onOptions }: { dose: Dose; onOptions: () => void }) {
+  return <div className={`care-dose-row ${dose.status}`}><div className="dose-time"><strong>{dose.scheduledTime.split(" ")[0]}</strong><span>{dose.scheduledTime.split(" ")[1]}</span></div><div className="mini-pill" aria-hidden="true"><span /></div><div className="dose-info"><strong>{dose.medicationName}</strong><span>{dose.dosage}</span></div><div className="dose-status">{dose.status === "taken" ? <><Check />Taken at 8:07 AM</> : <><Clock3 />Upcoming</>}</div><button onClick={onOptions} aria-label={`More options for ${dose.medicationName}`}><MoreHorizontal /></button></div>;
 }
 
 function Activity({ icon, title, detail }: { icon: "check" | "missed"; title: string; detail: string }) { return <div><span className={`activity-icon ${icon}`}>{icon === "check" ? <Check /> : <AlertTriangle />}</span><div><strong>{title}</strong><p>{detail}</p></div><span className="activity-time">{icon === "check" ? "Today" : "Yesterday"}</span></div>; }
 
-function MedicationsView({ data, onAdd }: { data: ReturnType<typeof useDashboard>["data"]; onAdd: () => void }) {
-  return <div className="dashboard-content"><section className="panel meds-panel"><div className="table-toolbar"><div className="search"><Search /><input aria-label="Search medications" placeholder="Search medications" /></div><button className="primary-compact" onClick={onAdd}><Plus />Add medication</button></div><div className="med-table">{data.medications.map((med) => <div className="med-row" key={med.id}><div className={`med-color ${med.color}`}><Medication /></div><div><strong>{med.name}</strong><span>{med.dosage}</span></div><div><small>Schedule</small><strong>{med.scheduleTimes.join(", ")}</strong></div><div><small>Photo check</small><strong>{med.requiresPhoto ? "Required" : "Not required"}</strong></div><button aria-label={`Edit ${med.name}`}><MoreHorizontal /></button></div>)}</div></section></div>;
+function MedicationsView({ data, onAdd, onEdit }: { data: ReturnType<typeof useDashboard>["data"]; onAdd: () => void; onEdit: (medication: MedicationData) => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return <div className="dashboard-content"><section className="panel meds-panel"><div className="table-toolbar"><div className="search"><Search /><input aria-label="Search medications" placeholder="Search medications" /></div><button className="primary-compact" onClick={onAdd}><Plus />Add medication</button></div><div className="med-table">{data.medications.map((med) => {
+    const expired = Boolean(med.endDate && med.endDate < today);
+    const status = !med.active ? "Paused" : expired ? "Ended" : "Active";
+    const days = med.daysOfWeek.length === 7 ? "Every day" : med.daysOfWeek.map((day) => dayNames[day]).join(", ");
+    return <div className="med-row" key={med.id}><div className={`med-color ${med.color}`}><Medication /></div><div><strong>{med.name}</strong><span>{med.dosage}</span><small className={`med-status ${status.toLowerCase()}`}>{status}</small></div><div><small>Schedule</small><strong>{days} · {med.scheduleTimes.join(", ")}</strong><span>{med.endDate ? `Through ${med.endDate}` : "No end date"}</span></div><div><small>Photo check</small><strong>{med.requiresPhoto ? "Required" : "Not required"}</strong></div><button onClick={() => onEdit(med)} aria-label={`Edit ${med.name}`}><MoreHorizontal /></button></div>;
+  })}</div></section></div>;
 }
 
 function HistoryView({ doses }: { doses: Dose[] }) {
@@ -99,19 +116,66 @@ function HistoryView({ doses }: { doses: Dose[] }) {
 }
 
 function HistoryThumbnail({ photoKey }: { photoKey: string }) {
-  // Confirmation images are private, dynamic R2 responses and bypass image optimization.
+  const [source, setSource] = useState<string | null>(null);
+  useEffect(() => {
+    const doseId = Number(photoKey.replace("local:", ""));
+    let objectUrl: string | null = null;
+    void getLocalPhoto(doseId).then((photo) => {
+      if (photo) { objectUrl = URL.createObjectURL(photo); setSource(objectUrl); }
+    });
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [photoKey]);
+  if (!source) return <span className="photo-placeholder" aria-label="Photo stored on this device">•••</span>;
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/photos?key=${encodeURIComponent(photoKey)}`} alt="Confirmation thumbnail" />;
+  return <img src={source} alt="Confirmation thumbnail stored on this device" />;
 }
 
-function AddMedication({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+const scheduleDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function dateAfterMonths(months: number) {
+  const value = new Date();
+  value.setMonth(value.getMonth() + months);
+  return value.toISOString().slice(0, 10);
+}
+
+function toTimeInput(value: string) {
+  const match = value.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return value;
+  const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+function MedicationEditor({ seniorName, medication, onClose, onSaved }: { seniorName: string; medication?: MedicationData; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [times, setTimes] = useState(() => medication?.scheduleTimes.map(toTimeInput) ?? ["08:00"]);
+  const [hasEndDate, setHasEndDate] = useState(() => medication ? Boolean(medication.endDate) : true);
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setSaving(true); const form = new FormData(event.currentTarget);
-    const response = await fetch("/api/dashboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: form.get("name"), dosage: form.get("dosage"), times: [form.get("time")], instructions: form.get("instructions"), requiresPhoto: form.get("photo") === "on" }) });
-    setSaving(false); if (response.ok) onSaved();
+    event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget);
+    const response = await fetch("/api/dashboard", { method: medication ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: medication?.id, name: form.get("name"), dosage: form.get("dosage"), times, daysOfWeek: form.getAll("days").map(Number), startDate: form.get("startDate"), endDate: hasEndDate ? form.get("endDate") : null, instructions: form.get("instructions"), requiresPhoto: form.get("photo") === "on", active: medication?.active ?? true }) });
+    const result = await response.json() as { error?: string };
+    setSaving(false); if (response.ok) onSaved(); else setError(result.error ?? "Unable to save this medication.");
   }
-  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet" aria-labelledby="add-title"><header><div><p className="eyebrow">Medication setup</p><h2 id="add-title">Add a medication</h2><p>It will appear on Evelyn’s daily schedule.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><label>Medication name<input name="name" placeholder="e.g. Metformin" required autoFocus /></label><label>Dosage<input name="dosage" placeholder="e.g. 500 mg · 1 tablet" required /></label><label>Time each day<input name="time" type="time" required /></label><label>Simple instructions<textarea name="instructions" placeholder="e.g. Take with breakfast" /></label><label className="toggle-label"><span><strong>Photo confirmation</strong><small>Ask Evelyn to take a quick photo</small></span><input name="photo" type="checkbox" defaultChecked /></label><div className="sheet-actions"><button type="button" className="secondary-compact" onClick={onClose}>Cancel</button><button className="primary-compact" disabled={saving}>{saving ? "Adding…" : "Add medication"}</button></div></form></section></div>;
+  async function toggleActive() {
+    if (!medication) return;
+    setSaving(true); setError("");
+    const response = await fetch("/api/dashboard", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: medication.id, active: !medication.active }) });
+    setSaving(false); if (response.ok) onSaved(); else setError("Unable to change this medication right now.");
+  }
+  const startDate = medication?.startDate ?? new Date().toISOString().slice(0, 10);
+  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet medication-sheet" aria-labelledby="medication-editor-title"><header><div><p className="eyebrow">Medication setup</p><h2 id="medication-editor-title">{medication ? `Edit ${medication.name}` : "Add a medication"}</h2><p>Choose exactly when it should appear for {seniorName}.</p></div><button className="icon-button" onClick={onClose} aria-label="Close"><X /></button></header><form onSubmit={submit}><label>Medication name<input name="name" placeholder="e.g. Metformin" defaultValue={medication?.name} required autoFocus /></label><label>Dosage<input name="dosage" placeholder="e.g. 500 mg · 1 tablet" defaultValue={medication?.dosage} required /></label><fieldset className="day-picker"><legend>Days of the week</legend><div>{scheduleDays.map((day, index) => <label key={day}><input type="checkbox" name="days" value={index} defaultChecked={medication ? medication.daysOfWeek.includes(index) : true} /><span>{day}</span></label>)}</div></fieldset><fieldset className="time-picker"><legend>Times</legend>{times.map((time, index) => <div key={`${index}-${time}`}><input type="time" value={time} required aria-label={`Medication time ${index + 1}`} onChange={(event) => setTimes((current) => current.map((value, item) => item === index ? event.target.value : value))} />{times.length > 1 && <button type="button" className="icon-button" onClick={() => setTimes((current) => current.filter((_, item) => item !== index))} aria-label={`Remove time ${index + 1}`}><X /></button>}</div>)}<button type="button" className="add-time-button" onClick={() => setTimes((current) => [...current, "12:00"])}><Plus />Add another time</button></fieldset><div className="date-grid"><label>Start date<input name="startDate" type="date" defaultValue={startDate} required /></label><label>End date<input name="endDate" type="date" defaultValue={medication?.endDate ?? dateAfterMonths(3)} disabled={!hasEndDate} required={hasEndDate} /></label></div><label className="toggle-label"><span><strong>Set an end date</strong><small>Automatically stop showing doses after this date</small></span><input type="checkbox" checked={hasEndDate} onChange={(event) => setHasEndDate(event.target.checked)} /></label><label>Simple instructions<textarea name="instructions" placeholder="e.g. Take with breakfast" defaultValue={medication?.instructions} /></label><label className="toggle-label"><span><strong>Photo confirmation</strong><small>Ask {seniorName} to take a quick photo</small></span><input name="photo" type="checkbox" defaultChecked={medication?.requiresPhoto ?? true} /></label>{error && <p className="form-error" role="alert">{error}</p>}<div className="sheet-actions medication-actions">{medication && <button type="button" className="danger-compact" onClick={() => void toggleActive()} disabled={saving}>{medication.active ? "Pause medication" : "Resume medication"}</button>}<span /><button type="button" className="secondary-compact" onClick={onClose}>Cancel</button><button className="primary-compact" disabled={saving}>{saving ? "Saving…" : medication ? "Save changes" : "Add medication"}</button></div></form></section></div>;
 }
 
-function InvitePanel({ code, onClose, onCopy }: { code: string; onClose: () => void; onCopy: () => void }) { return <div className="sheet-backdrop"><section className="invite-dialog" aria-labelledby="invite-title"><button className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X /></button><div className="invite-icon"><Link2 /></div><p className="eyebrow">Senior device setup</p><h2 id="invite-title">Connect Evelyn’s phone</h2><p>Open this private link on Evelyn’s phone once. After that, Steady opens directly to her medication reminder.</p><div className="invite-code"><span>{code}</span><button onClick={onCopy}><Copy />Copy link</button></div><Link href={`/?invite=${code}`} className="primary-compact" onClick={onClose}>Preview senior view</Link></section></div>; }
+function InvitePanel({ seniorName, code, onClose, onCopy }: { seniorName: string; code: string; onClose: () => void; onCopy: () => void }) { return <div className="sheet-backdrop"><section className="invite-dialog" aria-labelledby="invite-title"><button className="icon-button dialog-close" onClick={onClose} aria-label="Close"><X /></button><div className="invite-icon"><Link2 /></div><p className="eyebrow">Senior device setup</p><h2 id="invite-title">Connect {seniorName}’s phone</h2><p>Open this private link on {seniorName}’s phone once. After that, Steady opens directly to the medication reminder.</p><div className="invite-code"><span>{code}</span><button onClick={onCopy}><Copy />Copy link</button></div><Link href={`/?invite=${code}`} className="primary-compact" onClick={onClose}>Preview senior view</Link></section></div>; }
+
+function SettingsPanel({ seniorName, caregiverName, onClose, onSave }: { seniorName: string; caregiverName: string; onClose: () => void; onSave: () => void }) {
+  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet utility-sheet" aria-labelledby="settings-title"><header><div><p className="eyebrow">Caregiver preferences</p><h2 id="settings-title">Settings</h2><p>Choose how Steady keeps you informed.</p></div><button className="icon-button" onClick={onClose} aria-label="Close settings"><X /></button></header><form onSubmit={(event) => { event.preventDefault(); onSave(); }}><label className="toggle-label"><span><strong>Missed-dose alerts</strong><small>Show an alert when a scheduled dose is missed</small></span><input type="checkbox" defaultChecked /></label><label className="toggle-label"><span><strong>Photo confirmations</strong><small>Keep photo confirmation on for new medications</small></span><input type="checkbox" defaultChecked /></label><label>Senior display name<input defaultValue={seniorName} aria-label="Senior display name" /></label><label>Caregiver name<input defaultValue={caregiverName} aria-label="Caregiver name" /></label><div className="privacy-note"><ShieldCheck /><div><strong>Private by design</strong><p>Only connected caregivers should be able to view medication history and confirmation photos.</p></div></div><div className="sheet-actions"><button type="button" className="secondary-compact" onClick={onClose}>Cancel</button><button className="primary-compact">Save settings</button></div></form></section></div>;
+}
+
+function HelpPanel({ seniorName, onClose }: { seniorName: string; onClose: () => void }) {
+  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet utility-sheet" aria-labelledby="help-title"><header><div><p className="eyebrow">Help center</p><h2 id="help-title">How can we help?</h2><p>Quick answers for caregivers using Steady.</p></div><button className="icon-button" onClick={onClose} aria-label="Close help"><X /></button></header><div className="help-list"><details open><summary>How do I see {seniorName}’s screen?<ChevronDown /></summary><p>Select <strong>View {seniorName}’s screen</strong> in the sidebar or <strong>View as {seniorName}</strong> at the top. This opens the simple senior reminder experience.</p></details><details><summary>How does photo confirmation work?<ChevronDown /></summary><p>When a medication requires a photo, {seniorName} takes one after selecting “I took it.” The caregiver can then see the confirmation in History.</p></details><details><summary>What should I do after a missed dose?<ChevronDown /></summary><p>Steady only reports adherence. Follow the medication label or contact a qualified healthcare professional; the app does not recommend dosing changes.</p></details></div><a className="support-card" href="mailto:support@steady.example"><Mail /><div><strong>Email support</strong><span>support@steady.example</span></div></a><p className="demo-note">This portfolio demo uses a placeholder support address.</p></section></div>;
+}
+
+function NotificationsPanel({ onClose, onViewHistory }: { onClose: () => void; onViewHistory: () => void }) {
+  return <div className="sheet-backdrop" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}><section className="side-sheet utility-sheet" aria-labelledby="notifications-title"><header><div><p className="eyebrow">Updates</p><h2 id="notifications-title">Notifications</h2><p>Recent items that may need your attention.</p></div><button className="icon-button" onClick={onClose} aria-label="Close notifications"><X /></button></header><div className="notification-list"><article className="attention"><span><AlertTriangle /></span><div><strong>Vitamin D3 was missed</strong><p>Yesterday at 2:00 PM</p></div></article><article><span><Check /></span><div><strong>Lisinopril confirmed</strong><p>Today at 8:07 AM · Photo confirmed</p></div></article></div><button className="primary-compact full-width" onClick={onViewHistory}>View adherence history</button></section></div>;
+}

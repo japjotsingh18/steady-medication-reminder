@@ -22,6 +22,10 @@ export const medications = sqliteTable("medications", {
   instructions: text("instructions").notNull().default(""),
   requiresPhoto: integer("requires_photo", { mode: "boolean" }).notNull().default(true),
   color: text("color").notNull().default("sage"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  daysOfWeek: text("days_of_week").notNull().default("[0,1,2,3,4,5,6]"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
 });
 
 export const doseLogs = sqliteTable("dose_logs", {

@@ -1,40 +1,139 @@
 # Steady
 
-Steady is a mobile-first medication reminder designed for seniors and the people who care for them. The senior experience answers three questions at a glance: what medicine is next, when is it due, and has it been taken? The caregiver experience adds schedule management and a lightweight adherence history without turning daily care into surveillance.
+An accessible medication reminder for seniors and the people who care for them.
 
-## Who it is for
+[![Live website](https://img.shields.io/badge/Live_Website-Open_Steady-215445?style=for-the-badge)](https://steady-medication-reminder.jsing138.workers.dev/)
+[![Caregiver dashboard](https://img.shields.io/badge/Caregiver_Dashboard-View_Demo-3d7564?style=for-the-badge)](https://steady-medication-reminder.jsing138.workers.dev/caregiver)
 
-- Seniors who benefit from large text, simple language, generous touch targets, and one obvious action at a time.
-- Family caregivers who want reassurance that scheduled medication was taken without having to call every day.
+![Steady medication reminder preview](public/og.png)
 
-## What the demo includes
+## About Steady
 
-- A senior home screen with the next dose, a large **I took it** action, camera capture, photo review, confirmation, and spoken reminder support.
-- A clear daily medication schedule using both text and icons for status.
-- A caregiver dashboard with today’s schedule, adherence summaries, missed-dose indicators, medication management, history, and a senior-device link.
-- Seeded demo data for Evelyn and her caregiver Maya.
-- Durable medication and dose records in Cloudflare D1, with confirmation photos stored in R2 when deployed through Sites.
+Medication schedules can be difficult to follow, especially when they involve several medicines, different times, or changing routines. Steady gives seniors a calm, focused reminder experience while helping caregivers manage schedules and review dose activity.
 
-## Accessibility decisions
+The senior view answers three questions at a glance:
 
-The senior view uses an 18px base font, high-contrast ink and cream colors, 48px-or-larger touch targets, visible keyboard focus, semantic headings, and status icons paired with text. It never uses color as the only status signal. Camera confirmation is a full-screen step with explicit actions instead of a small modal. Text remains usable at 200% zoom, motion is reduced when requested, and the reminder can be read aloud with the browser’s text-to-speech support.
+1. What medicine comes next?
+2. When should it be taken?
+3. Has it already been confirmed?
 
-Steady is an adherence and communication tool. It does not provide medical advice, check interactions, or recommend dosages.
+The caregiver dashboard adds flexible scheduling and adherence visibility without making daily care feel like surveillance.
+
+## Live demo
+
+- **Senior experience:** [steady-medication-reminder.jsing138.workers.dev](https://steady-medication-reminder.jsing138.workers.dev/)
+- **Caregiver dashboard:** [steady-medication-reminder.jsing138.workers.dev/caregiver](https://steady-medication-reminder.jsing138.workers.dev/caregiver)
+
+The public demo is seeded with sample medication data for Baljit Singh and caregiver Japjot Singh.
+
+## Features
+
+### Senior experience
+
+- Large, high-contrast medication cards with one clear primary action
+- Today's medication schedule and dose status
+- Contextual **Next dose**, **Due now**, and **Overdue** messaging
+- Browser text-to-speech for reading medication instructions aloud
+- Optional camera confirmation with a photo-review step
+- Responsive layouts for phones, tablets, and desktop screens
+
+### Caregiver experience
+
+- Daily dose overview and recent medication activity
+- Medication schedules for selected weekdays and multiple times per day
+- Start dates, optional end dates, and automatic schedule expiration
+- Controls to edit, pause, or resume medications
+- Dose-confirmation history and adherence summaries
+- Direct access to preview the connected senior experience
+
+## Accessibility
+
+Steady was designed around clarity and ease of use:
+
+- 18px base text in the senior experience
+- 48px-or-larger interactive targets
+- Strong contrast with calm, low-distraction colors
+- Semantic headings, visible keyboard focus, and descriptive labels
+- Text and icons used together so status never relies on color alone
+- Reduced-motion support and layouts that remain usable at 200% zoom
+- Full-screen photo confirmation instead of a small, crowded dialog
+
+## Privacy model
+
+Medication schedules and dose records are stored in Cloudflare D1. Confirmation photos remain in the senior device's browser using IndexedDB and are not uploaded to permanent cloud storage.
+
+This keeps the portfolio demo inexpensive and limits photo exposure. A caregiver using another device can see that a dose was confirmed but cannot retrieve the original photo.
+
+## Technology
+
+- **Frontend:** Next.js, React, TypeScript, CSS
+- **Runtime and hosting:** Cloudflare Workers
+- **Database:** Cloudflare D1 with Drizzle ORM migrations
+- **Build tooling:** Vinext, Vite, Wrangler
+- **Icons:** Lucide React
+
+```text
+Senior or caregiver browser
+            |
+            v
+    Cloudflare Worker
+       |           |
+       v           v
+ Static app     D1 database
+
+Photos stay in browser IndexedDB
+```
 
 ## Run locally
 
-Requirements: Node.js 22.13 or newer.
+### Requirements
+
+- Node.js 22.13 or newer
+- npm
+
+### Setup
 
 ```bash
+git clone https://github.com/japjotsingh18/steady-medication-reminder.git
+cd steady-medication-reminder
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Open the local URL shown in the terminal. The senior experience is at `/`; the caregiver experience is at `/caregiver`.
+Open the local URL printed in the terminal:
 
-Useful checks:
+- `/` - senior experience
+- `/caregiver` - caregiver dashboard
+
+Steady currently requires no API keys. Cloudflare D1 is connected through the `DB` binding in `wrangler.jsonc`. The database ID identifies the resource but does not authorize access.
+
+Keep local values in `.env.local`, which is ignored by Git. Add future production secrets with `wrangler secret put NAME`; never commit credentials.
+
+## Quality checks
 
 ```bash
-npm run build
 npm run lint
+npm test
+npm run build
 ```
+
+## Deploy to Cloudflare
+
+Authenticate Wrangler, apply the D1 migrations, and deploy:
+
+```bash
+npx wrangler login
+npx wrangler d1 migrations apply steady-db --remote
+npm run deploy
+```
+
+Pushing to GitHub does not automatically modify the live Worker. Production changes only when an authenticated maintainer runs the deployment command.
+
+## Medical disclaimer
+
+Steady is an adherence and communication tool. It does not provide medical advice, check drug interactions, diagnose conditions, or recommend dosages. Users should follow medication labels and guidance from qualified healthcare professionals.
+
+## Author
+
+Built by [Japjot Singh](https://github.com/japjotsingh18).
